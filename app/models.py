@@ -11,3 +11,4 @@ class Booking(Base):
     unit_id = Column(String)
     check_in_date = Column(Date)
     number_of_nights = Column(Integer)
+    check_out_date = Column(Date)

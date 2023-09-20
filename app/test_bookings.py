@@ -139,3 +139,123 @@ def test_different_guest_same_unit_booking_different_date(test_db):
     )
     assert response.status_code == 400, response.text
     assert response.json()['detail'] == 'For the given check-in date, the unit is already occupied'
+
+
+@pytest.mark.freeze_time('2023-05-21')
+def test_guest_same_unit_booking_extension(test_db):
+    # Create first booking for GuestA
+    response = client.post(
+        "/api/v1/booking",
+        json=GUEST_A_UNIT_1
+    )
+    assert response.status_code == 200, response.text
+
+    # GuestA trying to extend a booking
+    response = client.put(
+        "/api/v1/booking",
+        json={
+            'unit_id': '1',  # same unit
+            'guest_name': 'GuestA',  # same guest
+            # new check_in date of GUEST A is the previous check-out date
+            'check_in_date': (datetime.datetime.strptime(GUEST_A_UNIT_1['check_in_date'], '%Y-%m-%d') +
+                              datetime.timedelta(GUEST_A_UNIT_1['number_of_nights'])).strftime('%Y-%m-%d'),
+            'number_of_nights': 5
+        }
+    )
+
+    response.raise_for_status()
+    assert response.status_code == 200, response.text
+
+
+@pytest.mark.freeze_time('2023-05-21')
+def test_guest_same_unit_booking_extension_different_date(test_db):
+    # Create first booking
+    response = client.post(
+        "/api/v1/booking",
+        json=GUEST_A_UNIT_1
+    )
+    assert response.status_code == 200, response.text
+
+    # GuestA trying to extend a booking with a different date than the current check-out date
+    response = client.put(
+        "/api/v1/booking",
+        json={
+            'unit_id': '1',  # same unit
+            'guest_name': 'GuestA',  # same guest
+            # new check_in date of GUEST A is different (2 days ahead) from the previous check-out date
+            'check_in_date': (datetime.date.today() +
+                              datetime.timedelta(GUEST_A_UNIT_1['number_of_nights'] + 2)).strftime('%Y-%m-%d'),
+            'number_of_nights': 5
+        }
+    )
+    assert response.status_code == 400, response.text
+    assert response.json()['detail'] == 'New check-in date is not equal to the previous check-out date'
+
+
+@pytest.mark.freeze_time('2023-05-21')
+def test_guest_same_unit_booking_extension_different_guest(test_db):
+    # Create first booking for GuestA
+    response = client.post(
+        "/api/v1/booking",
+        json=GUEST_A_UNIT_1
+    )
+    assert response.status_code == 200, response.text
+
+    # Create a booking for GuestB for the same unit after GuestA
+    check_out_date_guest_a = (datetime.datetime.strptime(GUEST_A_UNIT_1['check_in_date'], '%Y-%m-%d') +
+                              datetime.timedelta(GUEST_A_UNIT_1['number_of_nights'])).strftime('%Y-%m-%d')
+    GUEST_B_UNIT_1['check_in_date'] = check_out_date_guest_a
+    response = client.post(
+        "/api/v1/booking",
+        json=GUEST_B_UNIT_1
+    )
+    assert response.status_code == 200, response.text
+
+    # GuestA trying to extend a booking but the unit is booked by another guest
+    response = client.put(
+        "/api/v1/booking",
+        json={
+            'unit_id': '1',  # same unit
+            'guest_name': 'GuestA',  # same guest
+            # new check_in date of GUEST A is the previous check-out date
+            'check_in_date': check_out_date_guest_a,
+            'number_of_nights': 5
+        }
+    )
+    assert response.status_code == 400, response.text
+    assert response.json()['detail'] == 'For the given number of nights, the unit is already occupied'
+
+
+@pytest.mark.freeze_time('2023-05-21')
+def test_guest_same_unit_booking_extension_different_guest_different_dates(test_db):
+    # Create first booking for GuestA
+    response = client.post(
+        "/api/v1/booking",
+        json=GUEST_A_UNIT_1
+    )
+    assert response.status_code == 200, response.text
+
+    # Create a booking for GuestB for the same unit after GuestA
+    check_out_date_guest_a = (datetime.datetime.strptime(GUEST_A_UNIT_1['check_in_date'], '%Y-%m-%d') +
+                              datetime.timedelta(GUEST_A_UNIT_1['number_of_nights'])).strftime('%Y-%m-%d')
+    GUEST_B_UNIT_1['check_in_date'] = (datetime.datetime.strptime(check_out_date_guest_a, '%Y-%m-%d') +
+                                       datetime.timedelta(2)).strftime('%Y-%m-%d')
+    response = client.post(
+        "/api/v1/booking",
+        json=GUEST_B_UNIT_1
+    )
+    assert response.status_code == 200, response.text
+
+    # GuestA trying to extend a booking but the unit is booked by another guest
+    response = client.put(
+        "/api/v1/booking",
+        json={
+            'unit_id': '1',  # same unit
+            'guest_name': 'GuestA',  # same guest
+            # new check_in date of GUEST A is the previous check-out date
+            'check_in_date': check_out_date_guest_a,
+            'number_of_nights': 5
+        }
+    )
+    assert response.status_code == 400, response.text
+    assert response.json()['detail'] == 'For the given number of nights, the unit is already occupied'

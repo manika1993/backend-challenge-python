@@ -1,4 +1,5 @@
 from http import HTTPStatus
+from typing import List
 
 from fastapi import FastAPI, Depends
 from fastapi.exceptions import HTTPException
@@ -31,6 +32,16 @@ def hello_world():
 def create_booking(booking: schemas.BookingBase, db: Session = Depends(get_db)):
     try:
         return crud.create_booking(db=db, booking=booking)
+    except UnableToBook as unable_to_book:
+        raise HTTPException(status_code=HTTPStatus.BAD_REQUEST,
+                            detail=str(unable_to_book))
+
+
+# Extend an existing booking
+@app.put("/api/v1/booking", response_model=schemas.BookingBase)
+def extend_booking(booking: schemas.BookingBase, db: Session = Depends(get_db)):
+    try:
+        return crud.extend_booking(db=db, booking=booking)
     except UnableToBook as unable_to_book:
         raise HTTPException(status_code=HTTPStatus.BAD_REQUEST,
                             detail=str(unable_to_book))
